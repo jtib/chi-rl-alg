@@ -5,6 +5,7 @@ from tensorflow.python.layers.utils import smart_cond
 from tensorflow.python.ops.variable_scope import get_local_variable
 
 import chi
+import tensortools as tt
 from chi import Experiment
 from tensortools import Function
 from tensortools import experiment, model, Model
