@@ -2,6 +2,8 @@ import threading
 from contextlib import contextmanager
 
 import numpy as np
+import pprint
+import tensorflow.contrib.slim as slim
 from .wrappers import Wrapper
 from gym import Env
 from gym.spaces import Box
@@ -149,3 +151,72 @@ class ReadWriteLock:
             self.readers_ok.acquire()
             self.readers_ok.notifyAll()
             self.readers_ok.release()
+
+pp = pprint.PrettyPrinter()
+
+def to_json(output_path, *layers):
+    with open(output_path, "w") as layer_f:
+        lines = ""
+        for w, b, bn in layers:
+            layer_idx = w.name.split('/')[0].split('h')[1]
+
+            B = b.eval()
+
+            if "lin/" in w.name:
+                W = w.eval()
+                depth = W.shape[1]
+            else:
+                W = np.rollaxis(w.eval(), 2, 0)
+                depth = W.shape[0]
+
+            biases = {"sy": 1, "sx": 1, "depth": depth, "w": ['%.2f' % elem for elem in list(B)]}
+            if bn != None:
+                gamma = bn.gamma.eval()
+                beta = bn.beta.eval()
+
+                gamma = {"sy": 1, "sx": 1, "depth": depth, "w": ['%.2f' % elem for elem in list(gamma)]}
+                beta = {"sy": 1, "sx": 1, "depth": depth, "w": ['%.2f' % elem for elem in list(beta)]}
+            else:
+                gamma = {"sy": 1, "sx": 1, "depth": 0, "w": []}
+                beta = {"sy": 1, "sx": 1, "depth": 0, "w": []}
+
+            if "lin/" in w.name:
+                fs = []
+                for w in W.T:
+                    fs.append({"sy": 1, "sx": 1, "depth": W.shape[0], "w": ['%.2f' % elem for elem in list(w)]})
+
+                lines += """
+                    var layer_%s = {
+                        "layer_type": "fc",
+                        "sy": 1, "sx": 1,
+                        "out_sx": 1, "out_sy": 1,
+                        "stride": 1, "pad": 0,
+                        "out_depth": %s, "in_depth": %s,
+                        "biases": %s,
+                        "gamma": %s,
+                        "beta": %s,
+                        "filters": %s
+                    };""" % (layer_idx.split('_')[0], W.shape[1], W.shape[0], biases, gamma, beta, fs)
+            else:
+                fs = []
+                for w_ in W:
+                    fs.append({"sy": 5, "sx": 5, "depth": W.shape[3], "w": ['%.2f' % elem for elem in list(w_.flatten())]})
+
+                lines += """
+                    var layer_%s = {
+                        "layer_type": "deconv",
+                        "sy": 5, "sx": 5,
+                        "out_sx": %s, "out_sy": %s,
+                        "stride": 2, "pad": 1,
+                        "out_depth": %s, "in_depth": %s,
+                        "biases": %s,
+                        "gamma": %s,
+                        "beta": %s,
+                        "filters": %s
+                    };""" % (layer_idx, 2**(int(layer_idx)+2), 2**(int(layer_idx)+2),
+                            W.shape[0], W.shape[3], biases, gamma, beta, fs)
+        layer_f.write(" ".join(lines.replace("'","").split()))
+
+def show_all_variables():
+    model_vars = tt.trainable_variables()
+    slim.model_analyzer.analyse_vars(model_vars, print_info=True)
