@@ -3,6 +3,7 @@ from time import sleep
 import os
 import PIL
 import scipy.misc
+import math
 import chi
 import tensortools as tt
 from tensortools import Function
@@ -12,15 +13,16 @@ import tensorflow as tf
 from tensorflow.contrib import layers
 from .util import pp, to_json, show_all_variables
 
+def conv_out_size_same(size, stride):
+    return int(math.ceil(float(size) / float(stride)))
+
 class DCGAN:
     """
     An implementation of
         Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks
         https://arxiv.org/abs/1511.06434
     """
-    def __init__(self, env: gym.Env, cnn: tt.Model, logdir=None):
-        so = env.observation_space.shape
-        self.env = env
+    def __init__(self, cnn: tt.Model, batch_size=64, sample_num=64, logdir=None):
         self.logdir = logdir
 
         def act(x: [so]):
@@ -48,6 +50,25 @@ FLAGS = flags.FLAGS
 
 def test_dcgan():
     pp.pprint(flags.FLAGS.__flags)
+
+    @model(optimizer=tf.train.AdamOptimizer(0.0002, beta1=0.5))
+    def generator(z, y=None):
+        if y=None:
+            s_h, s_w = FLAGS.output_height, FLAGS.output_width
+            s_h2, s_w2 = conv_out_size_same(s_h, 2), conv_out_size_same(s_w, 2)
+            s_h4, s_w4 = conv_out_size_same(s_h, 4), conv_out_size_same(s_w, 4)
+            s_h8, s_w8 = conv_out_size_same(s_h, 8), conv_out_size_same(s_w, 8)
+            s_h16, s_w16 = conv_out_size_same(s_h, 16), conv_out_size_same(s_w, 16)
+
+            z_ = #TODO: project
+            x = layers.conv2d_transpose(z_, )
+            c = layers.conv2d_transpose(x, )
+            c = layers.conv2d_transpose(c, )
+            c = layers.conv2d_transpose(c, )
+#weights: cf deconv2 in ops
+            return a
+
+
 
 
 
